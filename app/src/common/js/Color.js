@@ -7,6 +7,15 @@ function componentToHex(c) {
 	return hex.length == 1 ? "0" + hex : hex;
 }
 
+function clamp(value, min, max) {
+	if (value < min) {
+		return min;
+	} else if (value > max) {
+		return max;
+	}
+	return value;
+}
+
 /**
  * The Color class
  */
@@ -140,20 +149,57 @@ class Color {
 		}
 	}
 
-	static lerp2(color1, color2, percent) {
-		return new Color({
-			r: (color2.r - color1.r) * percent + color1.r,
-			g: (color2.g - color1.g) * percent + color1.g,
-			b: (color2.b - color1.b) * percent + color1.b
-		});
+	static blend(colors=[]) {
+		let hue = 0;
+		let saturation = 0;
+		let lightness = 0;
+		for (let color in colors) {
+			hue += colors[color].hue;
+			saturation += colors[color].saturation;
+			lightness += colors[color].lightness;
+		}
+		hue /= colors.length;
+		saturation /= colors.length;
+		lightness /= colors.length;
+		return new Color({h: hue, s: saturation, l: lightness});
 	}
 
-	static lerp3(color1, color2, color3, percent) {
-		if (percent < .5) {
-			return Color.lerp2(color1, color2, percent * 2);
-		} else {
-			return Color.lerp2(color2, color3, (percent - .5) * 2);
+	static add(colors=[]) {
+		let color = new Color();
+		for (let c in colors) {
+			color.red = clamp(color.red + colors[c].red, 0, 255);
+			color.green = clamp(color.green + colors[c].green, 0, 255);
+			color.blue = clamp(color.blue + colors[c].blue, 0, 255);
+			color.alpha = clamp(color.alpha + colors[c].alpha, 0, 1);
 		}
+		return color;
+	}
+
+	static subtract(color1, color2) {
+		let red = clamp(color1.red - color2.red, 0, 255);
+		let green = clamp(color1.green - color2.green, 0, 255);
+		let blue = clamp(color1.blue - color2.blue, 0, 255);
+		return new Color(red, green, blue);
+	}
+
+	static multiply(colors=[]) {
+		let color = new Color(255, 255, 255);
+		for (let c in colors) {
+			color.red *= colors[c].red / 255;
+			color.green *= colors[c].green / 255;
+			color.blue *= colors[c].blue / 255;
+			color.alpha *= colors[c].alpha;
+		}
+		return color;
+	}
+
+	static screen(colors=[]) {
+		let color = new Color(255, 255, 255);
+		let white = new Color(255, 255, 255);
+		for (let c in colors) {
+			color = Color.subtract(white, Color.multiply(Color.subtract(white, color), Color.subtract(white, colors[c])));
+		}
+		return color;
 	}
 
 	cssRGB() {
@@ -337,6 +383,25 @@ class Color {
 	}
 	set b(value) {
 		this.blue = value;
+	}
+
+	/**
+	 * Alpha Getters and Setter
+	 */
+	get alpha() {
+		return this.data.alpha;
+	}
+
+	get a() {
+		return this.alpha;
+	}
+
+	set alpha(value) {
+		this.data.alpha = value;
+	}
+
+	set a(value) {
+		this.alpha = value;
 	}
 
 	/**

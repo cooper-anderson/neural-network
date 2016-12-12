@@ -7,7 +7,7 @@ const seedrandom = require("seedrandom");
 const clone = require("clone");
 
 let seed = 1;
-let seedRandom = seedrandom(seed);
+let seedRandom = Math.random;//seedrandom(seed);
 
 function random(min=0, max=1, func=function(value) {return value;}, inclusive=true) {
 	if (min == 0 && max == 1) {
@@ -82,10 +82,10 @@ class Synapse {
  * The Neural Network class
  */
 class NeuralNetwork {
-	constructor(inputLayer=['A', 'B', 'C'], outputLayer=['O'], hiddenLayers=[]) {
+	constructor(inputLayer=['A', 'B', 'C'], outputLayer=['O'], hiddenLayers=[], dna=undefined) {
 		this.inputs = clone(inputLayer);
 		this.outputs = clone(outputLayer);
-		this.values = []
+		this.values = [];
 		for (let i = 0; i < this.inputs.length; i++) {
 			if (typeof this.inputs[i] == 'string') {
 				this.inputs[i] = {name: this.inputs[i]};
@@ -108,15 +108,29 @@ class NeuralNetwork {
 			this.layers.push(hiddenLayers[layer]);
 		}
 		this.layers.push(this.outputs.length);
-		this.maxLayerCount = maxArray(this.layers);
-		for (let synapseLayer = 0; synapseLayer < this.layers.length - 1; synapseLayer++) {
-			this.synapses.push([]);
-			for (let neuronA = 0; neuronA < this.layers[synapseLayer]; neuronA++) {
-				this.synapses[synapseLayer].push([]);
-				for (let neuronB = 0; neuronB < this.layers[synapseLayer + 1]; neuronB++) {
-					this.synapses[synapseLayer][neuronA].push(random(-1, 1, undefined, false));
+		this.layerLengths = {min: this.layers[0], max: 0, mean: 0};
+		for (let layer = 0; layer < this.layers.length; layer++) {
+			if (this.layers[layer] < this.layerLengths.min) {
+				this.layerLengths.min = this.layers[layer];
+			}
+			if (this.layers[layer] > this.layerLengths.max) {
+				this.layerLengths.max = this.layers[layer];
+			}
+			this.layerLengths.mean += this.layers[layer];
+		}
+		this.layerLengths.mean /= this.layers.length;
+		if (dna == undefined) {
+			for (let synapseLayer = 0; synapseLayer < this.layers.length - 1; synapseLayer++) {
+				this.synapses.push([]);
+				for (let neuronA = 0; neuronA < this.layers[synapseLayer]; neuronA++) {
+					this.synapses[synapseLayer].push([]);
+					for (let neuronB = 0; neuronB < this.layers[synapseLayer + 1]; neuronB++) {
+						this.synapses[synapseLayer][neuronA].push(random(-128, 128, Math.floor, false) / 256);
+					}
 				}
 			}
+		} else {
+
 		}
 	}
 	static Sigmoid(value) {
@@ -142,28 +156,47 @@ class NeuralNetwork {
 		}
 		return output;
 	}
-	Draw(sigma=undefined, drawSynapses=1, drawLabels=true, graphColor=Color.colors.material.lightBlue[0]) {
+	Draw(sigma=undefined, _settings={}) {
+		let settings = {drawSynapses: 3, graphColor: Color.colors.material.lightBlue[0], scale: {x: 0, y: 0}, colorHidden: false};
+		let colors = []
+		$.extend(true, settings, _settings);
 		if (sigma.graph.nodes().length < 1) {
 			for (let x = 0; x < this.layers.length; x++) {
+				colors.push([]);
 				for (let y = 0; y < this.layers[x]; y++) {
+					if (settings.colorHidden) {
+						if (x == 0) {
+							colors[x].push(Color.parse(this.inputs[y].color.cssHEX()).setLightness(this.values[x][y]));
+						} else {
+							colors[x].push(Color.add(colors[x-1]));
+						}
+					} else {
+						if (x == 0) {
+							colors[x].push(Color.parse(this.inputs[y].color.cssHEX()).setLightness(this.values[x][y]));
+						} else if (x == this.layers.length - 1) {
+							colors[x].push(Color.parse(this.outputs[y].color.cssHEX()).setLightness(this.values[x][y]));
+						} else {
+							colors[x].push(Color.parse(settings.graphColor.cssRGB()).setLightness(this.values[x][y]));
+						}
+					}
 					sigma.graph.addNode({
 						id: `${x}-${y}`,
-						label: (drawLabels) ? Number(this.values[x][y].toFixed(2)).toLocaleString() : undefined,
-						x: x * 1, /** 8/3,/*///* (sigma.renderers[0].width / this.layers.length),
-						y: (((this.maxLayerCount - this.layers[x]) / 2) + y),// * (sigma.renderers[0].height / this.maxLayerCount),
+						label: ((x == 0 ? this.inputs[y].name + ": ": (x == this.layers.length - 1 ? this.outputs[y].name + ": " : ""))) + Number(this.values[x][y].toFixed(2)).toLocaleString(),
+						x: (!settings.scale.x) ? x / (this.layers.length-1) : x * settings.scale.x,
+						y: (!settings.scale.y) ? (this.layers[x] >= 4) ? y / (this.layers[x]-1) : (y+1) * (1/(this.layers[x]+1)) : (((this.layerLengths.max - this.layers[x]) / 2) + y) * settings.scale.y,
 						size: 10,
-						color: function (self) {
+						color: colors[x][y].cssHEX()/*function (self) {
 							if (x == 0) {
 								return Color.parse(self.inputs[y].color.cssHEX()).setLightness(self.values[x][y]).cssHEX();
 							} else if (x == self.layers.length - 1) {
 								return Color.parse(self.outputs[y].color.cssHEX()).setLightness(self.values[x][y]).cssHEX();
 							}
-							return Color.parse(graphColor.cssRGB()).setLightness(self.values[x][y]).cssHEX()
-						}(this)
+							return Color.parse(settings.graphColor.cssRGB()).setLightness(self.values[x][y]).cssHEX()
+						}(this)*/
 					});
 				}
 			}
-			if (drawSynapses) {
+			if (settings.drawSynapses) {
 				for (let layer = 0; layer < this.synapses.length; layer++) {
 					for (let a = 0; a < this.synapses[layer].length; a++) {
 						for (let b = 0; b < this.synapses[layer][a].length; b++) {
@@ -173,13 +206,12 @@ class NeuralNetwork {
 								source: `${layer}-${a}`,
 								target: `${layer + 1}-${b}`,
 								size: Math.abs(this.synapses[layer][a][b]),
-								label: (drawLabels) ? this.synapses[layer][a][b].toString() : undefined,
 								color: function (self) {
-									if (drawSynapses == 1) {
+									if (settings.drawSynapses == 1) {
 										return Color.lerp([Color.colors.material.red[0], Color.colors.material.grey[0], Color.colors.material.grey[0], Color.colors.material.lightGreen[0]], (self.synapses[layer][a][b] + 1) / 2).cssHEX();
-									} else if (drawSynapses == 2) {
+									} else if (settings.drawSynapses == 2) {
 										return Color.lerp([new Color("#2a2a2b"), Color.lerp([Color.colors.material.red[0], Color.colors.material.grey[0], Color.colors.material.grey[0], Color.colors.material.lightGreen[0]], (self.synapses[layer][a][b] + 1) / 2)], self.values[layer][a]).cssHEX();
-									} else if (drawSynapses == 3) {
+									} else if (settings.drawSynapses == 3) {
 										let color = undefined;
 										if (Math.sign((self.synapses[layer][a][b])) == -1) {
 											color = Color.colors.material.red[0];
@@ -196,30 +228,40 @@ class NeuralNetwork {
 					}
 				}
 			}
+			sigma.camera.bind("coordinatesUpdated", function() {sigma.camera.x = 0;sigma.camera.y = 0;})
 		} else {
 			for (let x = 0; x < this.layers.length; x++) {
+				colors.push([]);
 				for (let y = 0; y < this.layers[x]; y++) {
-					sigma.graph.nodes(`${x}-${y}`).label = (drawLabels) ? Number(this.values[x][y].toFixed(2)).toLocaleString() : undefined;
-					sigma.graph.nodes(`${x}-${y}`).color = (function (self) {
+					if (settings.colorHidden) {
 						if (x == 0) {
-							return Color.parse(self.inputs[y].color.cssHEX()).setLightness(self.values[x][y]).cssHEX();
-						} else if (x == self.layers.length - 1) {
-							return Color.parse(self.outputs[y].color.cssHEX()).setLightness(self.values[x][y]).cssHEX();
+							colors[x].push(Color.parse(this.inputs[y].color.cssHEX()).setLightness(this.values[x][y]));
+						} else {
+							colors[x].push(Color.add(colors[x-1]));
 						}
-						return Color.parse(graphColor.cssRGB()).setLightness(self.values[x][y]).cssHEX()
-					})(this);
+					} else {
+						if (x == 0) {
+							colors[x].push(Color.parse(this.inputs[y].color.cssHEX()).setLightness(this.values[x][y]));
+						} else if (x == this.layers.length - 1) {
+							colors[x].push(Color.parse(this.outputs[y].color.cssHEX()).setLightness(this.values[x][y]));
+						} else {
+							colors[x].push(Color.parse(settings.graphColor.cssRGB()).setLightness(this.values[x][y]));
+						}
+					}
+					sigma.graph.nodes(`${x}-${y}`).label = ((x == 0? this.inputs[y].name + ": ": (x == this.layers.length - 1 ? this.outputs[y].name + ": " : ""))) + Number(this.values[x][y].toFixed(2)).toLocaleString();
+					sigma.graph.nodes(`${x}-${y}`).color = colors[x][y].cssHEX();
 				}
 			}
-			if (drawSynapses) {
+			if (settings.drawSynapses) {
 				for (let layer = 0; layer < this.synapses.length; layer++) {
 					for (let a = 0; a < this.synapses[layer].length; a++) {
 						for (let b = 0; b < this.synapses[layer][a].length; b++) {
 							sigma.graph.edges(`${layer}-${a}-${b}`).color = (function (self) {
-								if (drawSynapses == 1) {
+								if (settings.drawSynapses == 1) {
 									return Color.lerp([Color.colors.material.red[0], Color.colors.material.grey[0], Color.colors.material.grey[0], Color.colors.material.lightGreen[0]], (self.synapses[layer][a][b] + 1) / 2).cssHEX();
-								} else if (drawSynapses == 2) {
+								} else if (settings.drawSynapses == 2) {
 									return Color.lerp([new Color("#2a2a2b"), Color.lerp([Color.colors.material.red[0], Color.colors.material.grey[0], Color.colors.material.grey[0], Color.colors.material.lightGreen[0]], (self.synapses[layer][a][b] + 1) / 2)], self.values[layer][a]).cssHEX();
-								} else if (drawSynapses == 3) {
+								} else if (settings.drawSynapses == 3) {
 									let color = undefined;
 									if (Math.sign((self.synapses[layer][a][b])) == -1) {
 										color = Color.colors.material.red[0];
@@ -244,7 +286,20 @@ class NeuralNetwork {
 			}
 		}
 		sigma.refresh();
-
+	}
+	getDNA(base=2) {
+		let synapses = [];
+		for (let layer = 0; layer < this.synapses.length; layer++) {
+			for (let a = 0; a < this.synapses[layer].length; a++) {
+				for (let b = 0; b < this.synapses[layer][a].length; b++) {
+					let byte = ((this.synapses[layer][a][b] * 256) + 128).toString(base);
+					synapses.push(
+						'0'.repeat((255.0.toString(base).length) - byte.length) + byte
+					);
+				}
+			}
+		}
+		return synapses.join("");
 	}
 }
 
