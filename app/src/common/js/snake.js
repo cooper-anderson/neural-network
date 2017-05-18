@@ -66,7 +66,7 @@ class Snake {
 		this.vision = {"rot1": 0, "rot2": 0};
 		let inputs = [];
 		let outputs = [{name: "left", color: colors.left}, {name: "right", color: colors.right}];
-		let hiddenLayers = [8, 6];
+		let hiddenLayers = [];
 		for (let sightLine = 0; sightLine < this.sightLinesCount; sightLine++) {
 			inputs.push({name: `F${sightLine}`, color: colors.food});
 			this.vision[`F${sightLine}`] = 0;
