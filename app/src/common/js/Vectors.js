@@ -2,6 +2,9 @@
  * Created by cooperanderson on 12/11/16 AD.
  */
 
+Math.rad2deg = 180 / Math.PI;
+Math.deg2rad = Math.PI / 180;
+
 /**
  * The Vector2 class
  */
@@ -86,7 +89,7 @@ class Vector2 {
 	 */
 	Angle(round=true) {
 		round = (round) ? Math.round : function(value) {return value};
-		return round(Math.atan2(this.x, this.y)/0.0174533);
+		return Math.atan2(this.x, this.y) * Math.rad2deg;
 	}
 
 	/**
@@ -181,6 +184,10 @@ class Vector2 {
 		return new Vector2(vector.x / value, vector.y / value);
 	}
 
+	static Dot(vectorA, vectorB) {
+		return (vectorA.x * vectorB.x) + (vectorA.y * vectorB.y);
+	}
+
 	/**
 	 * Get the distance between two vectors
 	 * @param {Vector2} vector - The first vector
@@ -188,8 +195,35 @@ class Vector2 {
 	 * @returns {number} The distance between the two vectors
 	 * @constructor
 	 */
-	static Distance(vector, other) {
-		return Math.sqrt(Math.pow(vector.x - other.x, 2) + Math.pow(vector.y - other.y, 2));
+	static Distance(vectorA, vectorB) {
+		return Math.sqrt(Math.pow(vectorA.x - vectorB.x, 2) + Math.pow(vectorA.y - vectorB.y, 2));
+	}
+
+	static Angle(vectorA, vectorB) {
+		return Math.acos(Vector2.Dot(vectorA.normalized, vectorB.normalized)) * Math.rad2deg;
+	}
+
+	static DistanceFromVectorToPoint(vector, point) {
+		let hypotenuse = Vector2.Distance(new Vector2(), point);
+		let angle = Vector2.Angle(vector, point);
+		let opposite = hypotenuse * Math.sin(angle * Math.deg2rad);
+		return opposite;
+	}
+
+	static GetIntersection(pointA, vectorA, pointB, vectorB) {
+		let ao = pointA;
+		let av = vectorA;
+		let bo = pointB;
+		let bv = vectorB;
+		let d = Vector2.Sub(bo, ao);
+		let det = bv.x * av.y - bv.y * av.x;
+		let u = (d.y * bv.x - d.x * bv.y) / det
+		let v = (d.y * av.x - d.x * av.y) / det
+		return new Vector2(v, u);
+	}
+
+	static areClockwise(v1, v2) {
+		return -v1.x*v2.y + v1.y*v2.x > 0;
 	}
 
 	/**
@@ -200,8 +234,8 @@ class Vector2 {
 	 */
 	static Rotate(vector, theta=90) {
 		var rotated = new Vector2();
-		rotated.x = /*Math.round*/(vector.x * Math.cos(-theta * 0.0174533) - vector.y * Math.sin(-theta * 0.0174533));
-		rotated.y = /*Math.round*/(vector.x * Math.sin(-theta * 0.0174533) + vector.y * Math.cos(-theta * 0.0174533));
+		rotated.x = /*Math.round*/(vector.x * Math.cos(-theta * Math.deg2rad) - vector.y * Math.sin(-theta * Math.deg2rad));
+		rotated.y = /*Math.round*/(vector.x * Math.sin(-theta * Math.deg2rad) + vector.y * Math.cos(-theta * Math.deg2rad));
 		return rotated.normalized.Mult(vector.magnitude);
 	}
 

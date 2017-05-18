@@ -16,6 +16,15 @@ function clamp(value, min, max) {
 	return value;
 }
 
+function getRandomKey(obj) {
+	var result;
+	var count = 0;
+	for (var prop in obj)
+		if (Math.random() < 1/++count)
+			result = prop;
+	return result;
+}
+
 /**
  * The Color class
  */
@@ -200,6 +209,24 @@ class Color {
 			color = Color.subtract(white, Color.multiply(Color.subtract(white, color), Color.subtract(white, colors[c])));
 		}
 		return color;
+	}
+
+	static GetRandomColor(family, index=[0, 0]) {
+		return Color.colors[family][getRandomKey(Color.colors[family])][Math.random() * (index[1] - index[0]) + index[1]];
+	}
+
+	static GetBinary(color) {
+		let bytes = "";
+		let byte = "";
+		byte = color.red.toString(2);
+		bytes += '0'.repeat(8 - byte.length) + byte;
+		byte = "";
+		byte = color.green.toString(2);
+		bytes += '0'.repeat(8 - byte.length) + byte;
+		byte = "";
+		byte = color.green.toString(2);
+		bytes += '0'.repeat(8 - byte.length) + byte;
+		return bytes;
 	}
 
 	cssRGB() {

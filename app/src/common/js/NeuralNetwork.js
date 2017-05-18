@@ -82,7 +82,7 @@ class Synapse {
  * The Neural Network class
  */
 class NeuralNetwork {
-	constructor(inputLayer=['A', 'B', 'C'], outputLayer=['O'], hiddenLayers=[], dna=undefined) {
+	constructor(inputLayer=['A', 'B', 'C'], outputLayer=['O'], hiddenLayers=[], dna="") {
 		this.inputs = clone(inputLayer);
 		this.outputs = clone(outputLayer);
 		this.values = [];
@@ -108,6 +108,10 @@ class NeuralNetwork {
 			this.layers.push(hiddenLayers[layer]);
 		}
 		this.layers.push(this.outputs.length);
+		this.synapseCount = 0;
+		for (let layer = 0; layer < this.layers.length-1; layer++) {
+			this.synapseCount += this.layers[layer] * this.layers[layer+1];
+		}
 		this.layerLengths = {min: this.layers[0], max: 0, mean: 0};
 		for (let layer = 0; layer < this.layers.length; layer++) {
 			if (this.layers[layer] < this.layerLengths.min) {
@@ -119,7 +123,7 @@ class NeuralNetwork {
 			this.layerLengths.mean += this.layers[layer];
 		}
 		this.layerLengths.mean /= this.layers.length;
-		if (dna == undefined) {
+		if (dna.length < this.synapseCount * 8) {
 			for (let synapseLayer = 0; synapseLayer < this.layers.length - 1; synapseLayer++) {
 				this.synapses.push([]);
 				for (let neuronA = 0; neuronA < this.layers[synapseLayer]; neuronA++) {
@@ -130,14 +134,32 @@ class NeuralNetwork {
 				}
 			}
 		} else {
-
+			let synapse = 0;
+			for (let synapseLayer = 0; synapseLayer < this.layers.length - 1; synapseLayer++) {
+				this.synapses.push([]);
+				for (let neuronA = 0; neuronA < this.layers[synapseLayer]; neuronA++) {
+					this.synapses[synapseLayer].push([]);
+					for (let neuronB = 0; neuronB < this.layers[synapseLayer + 1]; neuronB++) {
+						this.synapses[synapseLayer][neuronA].push((parseInt(dna.slice(synapse*8, (synapse+1)*8), 2) -128) / 256);
+						synapse++;
+					}
+				}
+			}
 		}
 	}
 	static Sigmoid(value) {
+		this.values = [];
 		return 1/(1+Math.pow(Math.E, -value));
 	}
 	Think(inputs=[]) {
-		this.values = [inputs];
+		this.values = [[]]
+		if (typeof inputs.length == "undefined") {
+			for (let input in this.inputs) {
+				this.values[0].push(inputs[this.inputs[input].name]);
+			}
+		} else {
+			this.values = [inputs];
+		}
 
 		for (let layer = 1; layer < this.layers.length; layer++) {
 			this.values.push([]);
@@ -300,6 +322,14 @@ class NeuralNetwork {
 			}
 		}
 		return synapses.join("");
+	}
+	static GetSynapseCount(inputs=[], outputs=[], hiddenLayers=[]) {
+		let layers = Array.prototype.concat([inputs.length], hiddenLayers, [outputs.length]);
+		let count = 0;
+		for (let layer = 0; layer < layers.length-1; layer++) {
+			count += layers[layer] * layers[layer+1];
+		}
+		return count;
 	}
 }
 
